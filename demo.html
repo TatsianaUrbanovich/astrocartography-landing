@@ -1,0 +1,1143 @@
+<!doctype html>
+<html lang="ru" data-lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%AD%3C/text%3E%3C/svg%3E">
+<title>Астрокартография — живая карта</title>
+<style>
+:root{
+  --accent:#5B5BD6;
+  --accent-soft:rgba(91,91,214,.12);
+  --bg:#FBFBFD;
+  --surface:#FFFFFF;
+  --text:#16161A;
+  --muted:#6B6B76;
+  --line:#E6E6EC;
+  --land:#EDEDF2;
+  --neutral:#9A9AA8;
+  --warn:#B45309;
+  --warn-soft:rgba(180,83,9,.10);
+  --on-accent:#FFFFFF;
+  --radius:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --accent:#8B8BEF;
+    --accent-soft:rgba(139,139,239,.16);
+    --bg:#111114;
+    --surface:#17171B;
+    --text:#F2F2F5;
+    --muted:#9B9BA6;
+    --line:#2A2A31;
+    --land:#26262D;
+    --neutral:#6E6E7C;
+    --warn:#FBBF24;
+    --warn-soft:rgba(251,191,36,.12);
+    --on-accent:#111114;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+  font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;
+}
+html[data-lang="ru"] .en{display:none}
+html[data-lang="en"] .ru{display:none}
+.wrap{max-width:1060px;margin:0 auto;padding:0 20px}
+
+/* шапка */
+header{border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:20}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0}
+.mark{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.mark .sub{color:var(--muted);font-weight:400}
+.bar-right{display:flex;align-items:center;gap:10px}
+.langs{display:flex;gap:2px;border:1px solid var(--line);border-radius:999px;padding:2px;background:var(--surface)}
+.langs button{font:inherit;font-size:13px;font-weight:500;border:0;background:transparent;color:var(--muted);
+  padding:6px 13px;border-radius:999px;cursor:pointer;min-height:32px}
+.langs button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+
+/* общие элементы */
+h1{font-size:clamp(24px,3.4vw,32px);line-height:1.15;letter-spacing:-.02em;font-weight:650;margin:0 0 8px}
+h2{font-size:17px;font-weight:620;letter-spacing:-.01em;margin:0 0 14px}
+p{margin:0 0 14px}
+.sub-lead{color:var(--muted);margin:0 0 24px;max-width:62ch}
+.intro{padding:28px 0 20px}
+
+/* сетка */
+.grid{display:grid;grid-template-columns:320px 1fr;gap:24px;align-items:start;padding-bottom:40px}
+.grid > *{min-width:0}          /* иначе grid-элемент не сжимается и распирает страницу */
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.panel + .panel{margin-top:16px}
+
+/* форма */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;font-weight:550;margin-bottom:5px}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+input[type="text"],input[type="number"],input[type="date"],input[type="time"],select{
+  width:100%;font:inherit;font-size:15px;padding:9px 11px;min-height:44px;
+  border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);
+}
+input:focus-visible,select:focus-visible,button:focus-visible,[tabindex]:focus-visible{
+  outline:2px solid var(--accent);outline-offset:2px
+}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.check{display:flex;align-items:flex-start;gap:9px;font-size:14px;cursor:pointer;margin:10px 0 0}
+.check input{width:18px;height:18px;margin:2px 0 0;flex:none;accent-color:var(--accent)}
+.btn{
+  width:100%;font:inherit;font-size:15px;font-weight:560;padding:12px 18px;min-height:46px;
+  background:var(--accent);color:var(--on-accent);border:0;border-radius:8px;cursor:pointer;
+  transition:opacity .2s ease;
+}
+.btn:hover{opacity:.9}
+.btn.secondary{background:transparent;color:var(--accent);border:1px solid var(--line);margin-top:8px}
+.err{color:#DC2626;font-size:13px;margin-top:8px}
+@media (prefers-color-scheme:dark){.err{color:#F87171}}
+
+/* автодополнение */
+.combo{position:relative}
+.options{
+  position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;max-height:220px;overflow-y:auto;
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  box-shadow:0 8px 24px rgba(0,0,0,.10);padding:4px;margin:0;list-style:none;
+}
+.options li{padding:9px 11px;border-radius:6px;cursor:pointer;font-size:14px;min-height:40px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.options li:hover,.options li[aria-selected="true"]{background:var(--accent-soft)}
+.options .cc{color:var(--muted);font-size:12px;flex:none}
+
+/* пресеты */
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  font:inherit;font-size:13px;padding:7px 12px;min-height:36px;border-radius:999px;cursor:pointer;
+  border:1px solid var(--line);background:var(--surface);color:var(--text);
+}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+
+/* карта */
+.mapwrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+svg.map{width:100%;height:auto;display:block;touch-action:manipulation}
+.map .land{fill:var(--land)}
+.map .grat{stroke:var(--line);stroke-width:.5;fill:none}
+.map .band{opacity:.10}
+.map .pline{fill:none;stroke-width:1.4;vector-effect:non-scaling-stroke}
+.map .uband{opacity:.16}
+.map text{font-family:inherit;font-size:9px;font-weight:600;fill:var(--muted);
+  stroke:var(--surface);stroke-width:2.6;paint-order:stroke fill;pointer-events:none}
+.map .pin{fill:var(--text)}
+.map .probe{fill:none;stroke:var(--text);stroke-width:1.5}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;padding:12px 16px;border-top:1px solid var(--line);
+  font-size:12px;color:var(--muted);margin:0;list-style:none}
+.legend li{display:flex;align-items:center;gap:7px}
+
+/* результаты */
+.placeholder{color:var(--muted);text-align:center;padding:60px 20px;font-size:15px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tablewrap{overflow-x:auto}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;flex:none}
+.cityname{display:flex;align-items:center}
+.warnbox{background:var(--warn-soft);border-left:3px solid var(--warn);padding:12px 14px;border-radius:0 8px 8px 0;font-size:14px;margin-bottom:16px}
+.warnbox strong{color:var(--warn)}
+.meta{font-size:12px;color:var(--muted);margin-top:14px}
+.share{display:flex;gap:8px;margin-top:12px}
+.share input{font-size:12px;flex:1;min-width:0}
+table{min-width:0}
+footer{border-top:1px solid var(--line);padding:22px 0 40px;font-size:12px;color:var(--muted)}
+footer a{color:var(--accent)}
+@media (max-width:600px){
+  .map text{font-size:17px;stroke-width:4.5}   /* иначе подписи нечитаемы на телефоне */
+  th:nth-child(4),td:nth-child(4){display:none} /* «что усиливает» не влезает — убираем колонку */
+  .wrap{padding:0 16px}
+  h1{font-size:26px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <div class="mark">
+      <span class="ru">Астрокартография <span class="sub">— живая карта</span></span>
+      <span class="en">Astrocartography <span class="sub">— live map</span></span>
+    </div>
+    <div class="bar-right">
+      <div class="langs">
+        <button class="lang-btn" data-l="ru" aria-pressed="true">RU</button>
+        <button class="lang-btn" data-l="en" aria-pressed="false">EN</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="intro">
+    <h1 class="ru">Ваш лучший город для жизни</h1>
+    <h1 class="en">Your best city to live in</h1>
+    <p class="sub-lead ru">Введите дату, время и место рождения — карта покажет самые лучшие места для вашей жизни. Линии на карте — линии планет на момент вашего рождения.</p>
+    <p class="sub-lead en">Enter your date, time and place of birth — the map will show the best places for your life. The lines on the map are the planetary lines for the moment you were born.</p>
+  </div>
+
+  <div class="grid">
+    <!-- ЛЕВАЯ КОЛОНКА -->
+    <div>
+      <section class="panel">
+        <h2 class="ru">Данные рождения</h2>
+        <h2 class="en">Birth details</h2>
+
+        <div class="field">
+          <label for="f-date"><span class="ru">Дата рождения</span><span class="en">Date of birth</span></label>
+          <input type="date" id="f-date" value="1987-06-14" min="1900-01-01" max="2030-12-31">
+        </div>
+
+        <div class="field">
+          <label for="f-time"><span class="ru">Время рождения</span><span class="en">Time of birth</span></label>
+          <input type="time" id="f-time" value="09:30">
+          <label class="check">
+            <input type="checkbox" id="f-unknown">
+            <span class="ru">Не знаю точное время</span><span class="en">I don't know the exact time</span>
+          </label>
+          <p class="hint ru" id="hint-time">Точность важнее, чем кажется: ошибка в час сдвигает линии примерно на 15° долготы.</p>
+          <p class="hint en">Precision matters more than it seems: an hour of error shifts the lines by about 15° of longitude.</p>
+        </div>
+
+        <div class="field combo">
+          <label for="f-city"><span class="ru">Место рождения</span><span class="en">Place of birth</span></label>
+          <input type="text" id="f-city" autocomplete="off" role="combobox" aria-expanded="false"
+                 aria-autocomplete="list" aria-controls="city-options" value="Минск">
+          <ul class="options" id="city-options" role="listbox" hidden></ul>
+          <p class="hint" id="city-meta"></p>
+        </div>
+
+        <button class="btn" id="calc">
+          <span class="ru">Построить мою карту</span><span class="en">Build my map</span>
+        </button>
+        <p class="err" id="form-err" hidden></p>
+      </section>
+
+      <section class="panel">
+        <h2 class="ru">Что вам важно</h2>
+        <h2 class="en">What matters to you</h2>
+        <div class="presets" id="presets" role="group"></div>
+        <p class="hint ru">Пресет выбирает, какие планеты и углы получают вес. Показывать все сорок линий сразу бессмысленно — карта превращается в кашу.</p>
+        <p class="hint en">A preset decides which planets and angles carry weight. Showing all forty lines at once is pointless — the map becomes a tangle.</p>
+      </section>
+    </div>
+
+    <!-- ПРАВАЯ КОЛОНКА -->
+    <div>
+      <div class="mapwrap">
+        <svg class="map" id="map" viewBox="0 20 800 320" role="img" aria-labelledby="map-title">
+          <title id="map-title"></title>
+          <g class="land">
+            <path d="M386.7 120.0L364.4 137.8L362.2 166.7L371.1 182.2L382.2 190.0L406.7 186.7L420.0 191.1L420.0 202.2L426.7 213.3L426.7 240.0L433.3 262.2L440.0 275.6L460.0 275.6L471.1 264.4L477.8 248.9L488.9 235.6L488.9 222.2L486.7 211.1L495.6 200.0L513.3 175.6L497.8 173.3L484.4 166.7L475.6 137.8L471.1 131.1L444.4 128.9L422.2 124.4L406.7 120.0Z"/>
+            <path d="M475.6 137.8L495.6 171.1L517.8 162.2L526.7 148.9L506.7 133.3L488.9 133.3Z"/>
+            <path d="M380.0 104.4L395.6 91.1L408.9 84.4L417.8 73.3L424.4 71.1L411.1 62.2L433.3 46.7L462.2 42.2L488.9 48.9L533.3 44.4L566.7 40.0L600.0 31.1L633.3 26.7L651.1 35.6L688.9 40.0L722.2 44.4L755.6 44.4L777.8 53.3L795.6 55.6L777.8 66.7L762.2 71.1L751.1 84.4L744.4 93.3L711.1 100.0L700.0 104.4L684.4 115.6L671.1 131.1L644.4 155.6L633.3 177.8L622.2 186.7L615.6 164.4L595.6 153.3L577.8 171.1L571.1 182.2L562.2 160.0L551.1 148.9L533.3 144.4L526.7 142.2L506.7 133.3L488.9 133.3L475.6 137.8L480.0 120.0L462.2 117.8L453.3 111.1L440.0 106.7L426.7 102.2L417.8 102.2L406.7 106.7L386.7 120.0L380.0 115.6Z"/>
+            <path d="M26.7 53.3L44.4 42.2L88.9 44.4L122.2 44.4L155.6 48.9L188.9 48.9L211.1 44.4L222.2 37.8L255.6 66.7L277.8 84.4L255.6 100.0L235.6 111.1L220.0 131.1L222.2 144.4L200.0 135.6L184.4 142.2L188.9 160.0L195.6 166.7L206.7 171.1L215.6 180.0L224.4 180.0L213.3 168.9L188.9 164.4L166.7 155.6L155.6 146.7L146.7 131.1L131.1 122.2L124.4 104.4L108.9 77.8L66.7 68.9L44.4 77.8L33.3 66.7Z"/>
+            <path d="M224.4 180.0L240.0 173.3L262.2 177.8L284.4 188.9L302.2 204.4L315.6 211.1L322.2 217.8L313.3 228.9L304.4 251.1L293.3 255.6L277.8 275.6L262.2 286.7L255.6 300.0L248.9 315.6L242.2 320.0L233.3 304.4L237.8 282.2L242.2 266.7L244.4 240.0L231.1 231.1L220.0 213.3L222.2 200.0L228.9 191.1Z"/>
+            <path d="M653.3 248.9L651.1 257.8L655.6 275.6L686.7 271.1L706.7 277.8L722.2 284.4L733.3 282.2L740.0 262.2L724.4 242.2L715.6 224.4L702.2 226.7L688.9 226.7L677.8 231.1L668.9 242.2Z"/>
+            <path d="M300.0 66.7L288.9 51.1L277.8 40.0L300.0 26.7L333.3 17.8L351.1 31.1L344.4 44.4L322.2 55.6Z"/>
+            <path d="M388.9 88.9L386.7 80.0L393.3 71.1L400.0 80.0L402.2 86.7Z"/>
+            <path d="M497.8 235.6L511.1 233.3L511.1 255.6L500.0 255.6Z"/>
+            <path d="M686.7 126.7L702.2 120.0L713.3 108.9L724.4 102.2L715.6 106.7L706.7 120.0L693.3 126.7Z"/>
+            <path d="M691.1 202.2L713.3 206.7L733.3 220.0L717.8 220.0L697.8 217.8Z"/>
+            <path d="M768.9 302.2L780.0 297.8L788.9 291.1L795.6 282.2L786.7 277.8L782.2 288.9L771.1 297.8Z"/>
+          </g>
+          <g class="grat" id="graticule"></g>
+          <g id="bands"></g>
+          <g id="lines"></g>
+          <g id="labels"></g>
+          <g id="pins"></g>
+        </svg>
+        <ul class="legend" id="legend"></ul>
+      </div>
+
+      <section class="panel" id="results" style="margin-top:16px">
+        <p class="placeholder ru">Заполните данные слева и нажмите «Построить мою карту».</p>
+        <p class="placeholder en">Fill in the details on the left and press “Build my map”.</p>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="ru" style="margin:0">Демо. Положения планет считаются по элементам орбит JPL, часовые пояса — по встроенной в браузер базе IANA с исторической точностью. Расчёт идёт локально, данные никуда не отправляются.</p>
+    <p class="en" style="margin:0">Demo. Planetary positions use JPL orbital elements; time zones come from the browser's built-in IANA database with historical accuracy. Everything is computed locally; your data is never sent anywhere.</p>
+  </div>
+</footer>
+<script>
+(function () {
+'use strict';
+
+/* ─────────── 1. Астрономия. Элементы орбит — JPL/Standish, 1800–2050 ─────────── */
+
+var D2R = Math.PI / 180, R2D = 180 / Math.PI;
+function norm360(x) { return ((x % 360) + 360) % 360; }
+function norm180(x) { var v = norm360(x); return v > 180 ? v - 360 : v; }
+
+var ELEMENTS = {
+  mercury: [0.38709927, 0.20563593, 7.00497902, 252.25032350, 77.45779628, 48.33076593,
+            0.00000037, 0.00001906, -0.00594749, 149472.67411175, 0.16047689, -0.12534081],
+  venus:   [0.72333566, 0.00677672, 3.39467605, 181.97909950, 131.60246718, 76.67984255,
+            0.00000390, -0.00004107, -0.00078890, 58517.81538729, 0.00268329, -0.27769418],
+  earth:   [1.00000261, 0.01671123, -0.00001531, 100.46457166, 102.93768193, 0.0,
+            0.00000562, -0.00004392, -0.01294668, 35999.37244981, 0.32327364, 0.0],
+  mars:    [1.52371034, 0.09339410, 1.84969142, -4.55343205, -23.94362959, 49.55953891,
+            0.00001847, 0.00007882, -0.00813131, 19140.30268499, 0.44441088, -0.29257343],
+  jupiter: [5.20288700, 0.04838624, 1.30439695, 34.39644051, 14.72847983, 100.47390909,
+            -0.00011607, -0.00013253, -0.00183714, 3034.74612775, 0.21252668, 0.20469106],
+  saturn:  [9.53667594, 0.05386179, 2.48599187, 49.95424423, 92.59887831, 113.66242448,
+            -0.00125060, -0.00050991, 0.00193609, 1222.49362201, -0.41897216, -0.28867794],
+  uranus:  [19.18916464, 0.04725744, 0.77263783, 313.23810451, 170.95427630, 74.01692503,
+            -0.00196176, -0.00004397, -0.00242939, 428.48202785, 0.40805281, 0.04240589],
+  neptune: [30.06992276, 0.00859048, 1.77004347, -55.12002969, 44.96476227, 131.78422574,
+            0.00026291, 0.00005105, 0.00035372, 218.45945325, -0.32241464, -0.00508664],
+  pluto:   [39.48211675, 0.24882730, 17.14001206, 238.92903833, 224.06891629, 110.30393684,
+            -0.00031596, 0.00005170, 0.00004818, 145.20780515, -0.04062942, -0.01183482]
+};
+
+function julianDay(y, m, d, hours) {
+  if (m <= 2) { y -= 1; m += 12; }
+  var A = Math.floor(y / 100), B = 2 - A + Math.floor(A / 4);
+  return Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + d + B - 1524.5 + hours / 24;
+}
+
+function heliocentric(name, T) {
+  var E = ELEMENTS[name];
+  var a = E[0] + E[6] * T, e = E[1] + E[7] * T, I = (E[2] + E[8] * T) * D2R;
+  var L = E[3] + E[9] * T, varpi = E[4] + E[10] * T, Om = E[5] + E[11] * T;
+  var omega = (varpi - Om) * D2R, Omega = Om * D2R;
+  var M = norm180(L - varpi) * D2R;
+  var Ecc = M + e * Math.sin(M);
+  for (var i = 0; i < 12; i++) Ecc += (M - (Ecc - e * Math.sin(Ecc))) / (1 - e * Math.cos(Ecc));
+  var xp = a * (Math.cos(Ecc) - e), yp = a * Math.sqrt(1 - e * e) * Math.sin(Ecc);
+  var cw = Math.cos(omega), sw = Math.sin(omega), cO = Math.cos(Omega), sO = Math.sin(Omega),
+      cI = Math.cos(I), sI = Math.sin(I);
+  return {
+    x: (cw * cO - sw * sO * cI) * xp + (-sw * cO - cw * sO * cI) * yp,
+    y: (cw * sO + sw * cO * cI) * xp + (-sw * sO + cw * cO * cI) * yp,
+    z: (sw * sI) * xp + (cw * sI) * yp
+  };
+}
+
+function eq(lon, lat, T) {
+  var eps = (23.439291 - 0.0130042 * T) * D2R;
+  var sl = Math.sin(lon * D2R), cl = Math.cos(lon * D2R);
+  var sb = Math.sin(lat * D2R), cb = Math.cos(lat * D2R);
+  var ra = Math.atan2(sl * Math.cos(eps) - (sb / cb) * Math.sin(eps), cl) * R2D;
+  return { ra: norm360(ra), dec: Math.asin(sb * Math.cos(eps) + cb * Math.sin(eps) * sl) * R2D, lon: lon };
+}
+
+function moonEcliptic(T) {
+  var Lp = norm360(218.3164477 + 481267.88123421 * T);
+  var D = norm360(297.8501921 + 445267.1114034 * T) * D2R;
+  var M = norm360(357.5291092 + 35999.0502909 * T) * D2R;
+  var Mp = norm360(134.9633964 + 477198.8675055 * T) * D2R;
+  var F = norm360(93.2720950 + 483202.0175233 * T) * D2R;
+  var lon = Lp + 6.288774 * Math.sin(Mp) + 1.274027 * Math.sin(2 * D - Mp) + 0.658314 * Math.sin(2 * D)
+    + 0.213618 * Math.sin(2 * Mp) - 0.185116 * Math.sin(M) - 0.114332 * Math.sin(2 * F)
+    + 0.058793 * Math.sin(2 * D - 2 * Mp) + 0.057066 * Math.sin(2 * D - M - Mp)
+    + 0.053322 * Math.sin(2 * D + Mp) + 0.045758 * Math.sin(2 * D - M) - 0.040923 * Math.sin(M - Mp)
+    - 0.034720 * Math.sin(D) - 0.030383 * Math.sin(M + Mp);
+  var lat = 5.128122 * Math.sin(F) + 0.280602 * Math.sin(Mp + F) + 0.277693 * Math.sin(Mp - F)
+    + 0.173237 * Math.sin(2 * D - F) + 0.055413 * Math.sin(2 * D - Mp + F)
+    + 0.046271 * Math.sin(2 * D - Mp - F) + 0.032573 * Math.sin(2 * D + F);
+  return { lon: norm360(lon), lat: lat };
+}
+
+var PLANETS = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'];
+
+function positions(jd) {
+  var T = (jd - 2451545.0) / 36525.0, earth = heliocentric('earth', T), out = {};
+  var x = -earth.x, y = -earth.y, z = -earth.z;
+  out.sun = eq(norm360(Math.atan2(y, x) * R2D), Math.atan2(z, Math.hypot(x, y)) * R2D, T);
+  var m = moonEcliptic(T);
+  out.moon = eq(m.lon, m.lat, T);
+  ['mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'].forEach(function (n) {
+    var p = heliocentric(n, T), dx = p.x - earth.x, dy = p.y - earth.y, dz = p.z - earth.z;
+    out[n] = eq(norm360(Math.atan2(dy, dx) * R2D), Math.atan2(dz, Math.hypot(dx, dy)) * R2D, T);
+  });
+  return out;
+}
+
+function gmst(jd) {
+  var T = (jd - 2451545.0) / 36525.0;
+  return norm360(280.46061837 + 360.98564736629 * (jd - 2451545.0) + 0.000387933 * T * T - T * T * T / 38710000);
+}
+
+/* ─────────── 2. Часовые пояса: встроенная база IANA, с историей ─────────── */
+
+function zoneOffsetMinutes(tz, utcMillis) {
+  try {
+    var parts = new Intl.DateTimeFormat('en-GB', { timeZone: tz, timeZoneName: 'longOffset' })
+      .formatToParts(new Date(utcMillis));
+    var name = '';
+    for (var i = 0; i < parts.length; i++) if (parts[i].type === 'timeZoneName') name = parts[i].value;
+    var m = /GMT([+-])(\d{2}):(\d{2})/.exec(name);
+    if (!m) return 0;
+    return (m[1] === '-' ? -1 : 1) * (parseInt(m[2], 10) * 60 + parseInt(m[3], 10));
+  } catch (e) { return 0; }
+}
+
+// Локальное время в зоне tz -> момент UTC (мс). Две итерации ради переходов на летнее время.
+function localToUTC(y, mo, d, h, mi, tz) {
+  var guess = Date.UTC(y, mo - 1, d, h, mi, 0);
+  for (var i = 0; i < 2; i++) guess = Date.UTC(y, mo - 1, d, h, mi, 0) - zoneOffsetMinutes(tz, guess) * 60000;
+  return guess;
+}
+
+/* ─────────── 3. Города ─────────── */
+// [ru, en, lat, lon, IANA-зона]
+var CITIES = [
+["Лондон","London",51.507,-0.128,"Europe/London"],["Париж","Paris",48.857,2.352,"Europe/Paris"],
+["Берлин","Berlin",52.520,13.405,"Europe/Berlin"],["Мюнхен","Munich",48.137,11.576,"Europe/Berlin"],
+["Гамбург","Hamburg",53.551,9.994,"Europe/Berlin"],["Франкфурт","Frankfurt",50.110,8.682,"Europe/Berlin"],
+["Мадрид","Madrid",40.417,-3.704,"Europe/Madrid"],["Барселона","Barcelona",41.385,2.173,"Europe/Madrid"],
+["Валенсия","Valencia",39.470,-0.377,"Europe/Madrid"],["Малага","Malaga",36.721,-4.421,"Europe/Madrid"],
+["Лиссабон","Lisbon",38.722,-9.139,"Europe/Lisbon"],["Порту","Porto",41.150,-8.611,"Europe/Lisbon"],
+["Рим","Rome",41.903,12.496,"Europe/Rome"],["Милан","Milan",45.464,9.190,"Europe/Rome"],
+["Амстердам","Amsterdam",52.370,4.895,"Europe/Amsterdam"],["Брюссель","Brussels",50.851,4.352,"Europe/Brussels"],
+["Вена","Vienna",48.208,16.373,"Europe/Vienna"],["Прага","Prague",50.076,14.438,"Europe/Prague"],
+["Варшава","Warsaw",52.230,21.012,"Europe/Warsaw"],["Краков","Krakow",50.065,19.945,"Europe/Warsaw"],
+["Будапешт","Budapest",47.498,19.040,"Europe/Budapest"],["Бухарест","Bucharest",44.427,26.103,"Europe/Bucharest"],
+["София","Sofia",42.698,23.322,"Europe/Sofia"],["Афины","Athens",37.984,23.728,"Europe/Athens"],
+["Стокгольм","Stockholm",59.329,18.069,"Europe/Stockholm"],["Осло","Oslo",59.914,10.752,"Europe/Oslo"],
+["Копенгаген","Copenhagen",55.676,12.568,"Europe/Copenhagen"],["Хельсинки","Helsinki",60.170,24.938,"Europe/Helsinki"],
+["Дублин","Dublin",53.350,-6.260,"Europe/Dublin"],["Цюрих","Zurich",47.377,8.542,"Europe/Zurich"],
+["Женева","Geneva",46.204,6.143,"Europe/Zurich"],["Белград","Belgrade",44.787,20.449,"Europe/Belgrade"],
+["Загреб","Zagreb",45.815,15.982,"Europe/Zagreb"],["Любляна","Ljubljana",46.056,14.506,"Europe/Ljubljana"],
+["Братислава","Bratislava",48.146,17.107,"Europe/Bratislava"],["Вильнюс","Vilnius",54.687,25.280,"Europe/Vilnius"],
+["Рига","Riga",56.950,24.106,"Europe/Riga"],["Таллин","Tallinn",59.437,24.754,"Europe/Tallinn"],
+["Минск","Minsk",53.902,27.562,"Europe/Minsk"],["Киев","Kyiv",50.450,30.524,"Europe/Kyiv"],
+["Одесса","Odesa",46.482,30.723,"Europe/Kyiv"],["Львов","Lviv",49.840,24.030,"Europe/Kyiv"],
+["Москва","Moscow",55.756,37.617,"Europe/Moscow"],["Санкт-Петербург","Saint Petersburg",59.939,30.314,"Europe/Moscow"],
+["Казань","Kazan",55.796,49.106,"Europe/Moscow"],["Новосибирск","Novosibirsk",55.008,82.935,"Asia/Novosibirsk"],
+["Екатеринбург","Yekaterinburg",56.839,60.605,"Asia/Yekaterinburg"],["Стамбул","Istanbul",41.008,28.978,"Europe/Istanbul"],
+["Анкара","Ankara",39.933,32.859,"Europe/Istanbul"],["Тбилиси","Tbilisi",41.716,44.783,"Asia/Tbilisi"],
+["Батуми","Batumi",41.643,41.640,"Asia/Tbilisi"],["Ереван","Yerevan",40.183,44.515,"Asia/Yerevan"],
+["Баку","Baku",40.409,49.867,"Asia/Baku"],["Кишинёв","Chisinau",47.011,28.864,"Europe/Chisinau"],
+["Рейкьявик","Reykjavik",64.147,-21.942,"Atlantic/Reykjavik"],["Никосия","Nicosia",35.185,33.382,"Asia/Nicosia"],
+["Лимасол","Limassol",34.707,33.022,"Asia/Nicosia"],["Валлетта","Valletta",35.899,14.514,"Europe/Malta"],
+["Тель-Авив","Tel Aviv",32.085,34.781,"Asia/Jerusalem"],["Дубай","Dubai",25.205,55.271,"Asia/Dubai"],
+["Абу-Даби","Abu Dhabi",24.453,54.377,"Asia/Dubai"],["Доха","Doha",25.286,51.531,"Asia/Qatar"],
+["Эр-Рияд","Riyadh",24.713,46.675,"Asia/Riyadh"],["Тегеран","Tehran",35.689,51.389,"Asia/Tehran"],
+["Алматы","Almaty",43.238,76.889,"Asia/Almaty"],["Астана","Astana",51.169,71.449,"Asia/Almaty"],
+["Ташкент","Tashkent",41.299,69.240,"Asia/Tashkent"],["Бишкек","Bishkek",42.874,74.570,"Asia/Bishkek"],
+["Дели","Delhi",28.614,77.209,"Asia/Kolkata"],["Мумбаи","Mumbai",19.076,72.878,"Asia/Kolkata"],
+["Бангалор","Bangalore",12.972,77.595,"Asia/Kolkata"],["Гоа","Goa",15.300,74.124,"Asia/Kolkata"],
+["Катманду","Kathmandu",27.717,85.324,"Asia/Kathmandu"],["Коломбо","Colombo",6.927,79.861,"Asia/Colombo"],
+["Бангкок","Bangkok",13.756,100.502,"Asia/Bangkok"],["Пхукет","Phuket",7.880,98.392,"Asia/Bangkok"],
+["Сингапур","Singapore",1.352,103.820,"Asia/Singapore"],["Куала-Лумпур","Kuala Lumpur",3.139,101.687,"Asia/Kuala_Lumpur"],
+["Джакарта","Jakarta",-6.208,106.846,"Asia/Jakarta"],["Бали","Bali",-8.409,115.189,"Asia/Makassar"],
+["Манила","Manila",14.600,120.984,"Asia/Manila"],["Ханой","Hanoi",21.028,105.854,"Asia/Ho_Chi_Minh"],
+["Хошимин","Ho Chi Minh City",10.823,106.630,"Asia/Ho_Chi_Minh"],["Гонконг","Hong Kong",22.320,114.170,"Asia/Hong_Kong"],
+["Шанхай","Shanghai",31.230,121.474,"Asia/Shanghai"],["Пекин","Beijing",39.904,116.407,"Asia/Shanghai"],
+["Сеул","Seoul",37.567,126.978,"Asia/Seoul"],["Токио","Tokyo",35.682,139.650,"Asia/Tokyo"],
+["Осака","Osaka",34.694,135.502,"Asia/Tokyo"],["Тайбэй","Taipei",25.033,121.565,"Asia/Taipei"],
+["Нью-Йорк","New York",40.713,-74.006,"America/New_York"],["Бостон","Boston",42.360,-71.058,"America/New_York"],
+["Майами","Miami",25.762,-80.192,"America/New_York"],["Вашингтон","Washington",38.907,-77.037,"America/New_York"],
+["Торонто","Toronto",43.653,-79.383,"America/Toronto"],["Монреаль","Montreal",45.502,-73.567,"America/Toronto"],
+["Чикаго","Chicago",41.878,-87.630,"America/Chicago"],["Остин","Austin",30.267,-97.743,"America/Chicago"],
+["Денвер","Denver",39.739,-104.990,"America/Denver"],["Лос-Анджелес","Los Angeles",34.052,-118.244,"America/Los_Angeles"],
+["Сан-Франциско","San Francisco",37.775,-122.419,"America/Los_Angeles"],["Сиэтл","Seattle",47.606,-122.332,"America/Los_Angeles"],
+["Ванкувер","Vancouver",49.283,-123.121,"America/Vancouver"],["Мехико","Mexico City",19.433,-99.133,"America/Mexico_City"],
+["Гвадалахара","Guadalajara",20.667,-103.350,"America/Mexico_City"],["Гавана","Havana",23.114,-82.366,"America/Havana"],
+["Панама","Panama City",8.983,-79.521,"America/Panama"],["Сан-Хосе","San Jose",9.928,-84.091,"America/Costa_Rica"],
+["Богота","Bogota",4.711,-74.072,"America/Bogota"],["Медельин","Medellin",6.244,-75.581,"America/Bogota"],
+["Лима","Lima",-12.046,-77.043,"America/Lima"],["Сантьяго","Santiago",-33.449,-70.669,"America/Santiago"],
+["Буэнос-Айрес","Buenos Aires",-34.604,-58.382,"America/Argentina/Buenos_Aires"],
+["Монтевидео","Montevideo",-34.902,-56.164,"America/Montevideo"],["Сан-Паулу","Sao Paulo",-23.551,-46.633,"America/Sao_Paulo"],
+["Рио-де-Жанейро","Rio de Janeiro",-22.907,-43.173,"America/Sao_Paulo"],["Каир","Cairo",30.044,31.236,"Africa/Cairo"],
+["Касабланка","Casablanca",33.573,-7.590,"Africa/Casablanca"],["Марракеш","Marrakesh",31.630,-8.008,"Africa/Casablanca"],
+["Тунис","Tunis",36.807,10.181,"Africa/Tunis"],["Найроби","Nairobi",-1.286,36.817,"Africa/Nairobi"],
+["Аддис-Абеба","Addis Ababa",9.030,38.740,"Africa/Addis_Ababa"],["Лагос","Lagos",6.524,3.379,"Africa/Lagos"],
+["Аккра","Accra",5.604,-0.187,"Africa/Accra"],["Кейптаун","Cape Town",-33.925,18.424,"Africa/Johannesburg"],
+["Йоханнесбург","Johannesburg",-26.204,28.047,"Africa/Johannesburg"],["Сидней","Sydney",-33.869,151.209,"Australia/Sydney"],
+["Мельбурн","Melbourne",-37.814,144.963,"Australia/Melbourne"],["Брисбен","Brisbane",-27.469,153.025,"Australia/Brisbane"],
+["Перт","Perth",-31.953,115.857,"Australia/Perth"],["Окленд","Auckland",-36.849,174.763,"Pacific/Auckland"],
+["Веллингтон","Wellington",-41.289,174.777,"Pacific/Auckland"]
+];
+
+/* ─────────── 4. Линии ─────────── */
+
+var PLANET_INFO = {
+  sun:     { ru: 'Солнце',   en: 'Sun',     color: '#E8A33D', hard: false },
+  moon:    { ru: 'Луна',     en: 'Moon',    color: '#7FA8D4', hard: false },
+  mercury: { ru: 'Меркурий', en: 'Mercury', color: '#8FB58F', hard: false },
+  venus:   { ru: 'Венера',   en: 'Venus',   color: '#D48FB0', hard: false },
+  mars:    { ru: 'Марс',     en: 'Mars',    color: '#D46A5A', hard: true  },
+  jupiter: { ru: 'Юпитер',   en: 'Jupiter', color: '#5B5BD6', hard: false },
+  saturn:  { ru: 'Сатурн',   en: 'Saturn',  color: '#8A8A98', hard: true  },
+  uranus:  { ru: 'Уран',     en: 'Uranus',  color: '#5FAFAF', hard: true  },
+  neptune: { ru: 'Нептун',   en: 'Neptune', color: '#7B87C4', hard: true  },
+  pluto:   { ru: 'Плутон',   en: 'Pluto',   color: '#9A7FA8', hard: true  }
+};
+var ANGLE_DASH = { MC: '', IC: '2 4', AC: '1.5 4', DC: '9 3 2 3' };
+
+var LAT_FROM = 78, LAT_TO = -56, LAT_STEP = 2;
+
+// Полилинии всех четырёх линий планеты. Каждая — массив сегментов (разрыв на ±180°).
+function planetLines(ra, dec, gst) {
+  var out = {};
+  var mcLon = norm180(ra - gst);
+  out.MC = [meridian(mcLon)];
+  out.IC = [meridian(norm180(mcLon + 180))];
+  out.AC = horizonCurve(ra, dec, gst, -1);
+  out.DC = horizonCurve(ra, dec, gst, +1);
+  return out;
+}
+
+function meridian(lon) {
+  var pts = [];
+  for (var lat = LAT_FROM; lat >= LAT_TO; lat -= LAT_STEP) pts.push([lon, lat]);
+  return pts;
+}
+
+function horizonCurve(ra, dec, gst, sign) {
+  var segs = [], cur = [], prevLon = null;
+  for (var lat = LAT_FROM; lat >= LAT_TO; lat -= LAT_STEP) {
+    var c = -Math.tan(lat * D2R) * Math.tan(dec * D2R);
+    if (c < -1 || c > 1) {                       // светило не пересекает горизонт
+      if (cur.length > 1) segs.push(cur);
+      cur = []; prevLon = null; continue;
+    }
+    var H0 = Math.acos(c) * R2D;
+    var lon = norm180(ra + sign * H0 - gst);
+    if (prevLon !== null && Math.abs(lon - prevLon) > 180) {   // разрыв на антимеридиане
+      if (cur.length > 1) segs.push(cur);
+      cur = [];
+    }
+    cur.push([lon, lat]); prevLon = lon;
+  }
+  if (cur.length > 1) segs.push(cur);
+  return segs;
+}
+
+// Расстояние по дуге большого круга, км
+function gcDist(lat1, lon1, lat2, lon2) {
+  var p1 = lat1 * D2R, p2 = lat2 * D2R;
+  var dp = (lat2 - lat1) * D2R, dl = (lon2 - lon1) * D2R;
+  var a = Math.sin(dp / 2) * Math.sin(dp / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+  return 6371 * 2 * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+function distToSegments(lat, lon, segs) {
+  var best = Infinity;
+  for (var s = 0; s < segs.length; s++)
+    for (var i = 0; i < segs[s].length; i++) {
+      var d = gcDist(lat, lon, segs[s][i][1], segs[s][i][0]);
+      if (d < best) best = d;
+    }
+  return best;
+}
+
+/* ─────────── 5. Пресеты целей ─────────── */
+
+var PRESETS = {
+  career: { ru: 'Карьера', en: 'Career',        planets: ['sun','jupiter','saturn'],  angles: ['MC','AC'] },
+  love:   { ru: 'Отношения', en: 'Relationships', planets: ['venus','moon'],          angles: ['DC','AC'] },
+  calm:   { ru: 'Покой',   en: 'Calm',          planets: ['moon','neptune'],          angles: ['IC'] },
+  energy: { ru: 'Энергия', en: 'Energy',        planets: ['mars','uranus'],           angles: ['AC','MC'] },
+  all:    { ru: 'Все линии', en: 'All lines',   planets: PLANETS,                     angles: ['MC','IC','AC','DC'] }
+};
+var MEANING = {
+  sun:     { ru: 'заметность, признание', en: 'visibility, recognition' },
+  moon:    { ru: 'ощущение дома', en: 'a sense of home' },
+  mercury: { ru: 'учёба, переговоры', en: 'study, negotiation' },
+  venus:   { ru: 'отношения, лёгкость', en: 'relationships, ease' },
+  mars:    { ru: 'напор и конфликты', en: 'drive and conflict' },
+  jupiter: { ru: 'рост и возможности', en: 'growth and opportunity' },
+  saturn:  { ru: 'нагрузка и дисциплина', en: 'load and discipline' },
+  uranus:  { ru: 'перемены, нестабильность', en: 'change, instability' },
+  neptune: { ru: 'размытость, уход в себя', en: 'blur, withdrawal' },
+  pluto:   { ru: 'интенсивность, кризисы', en: 'intensity, crisis' }
+};
+var SIGNS = {
+  ru: ['Овен','Телец','Близнецы','Рак','Лев','Дева','Весы','Скорпион','Стрелец','Козерог','Водолей','Рыбы'],
+  en: ['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces']
+};
+
+/* ─────────── 6. Проекция и отрисовка ─────────── */
+
+var S = 800 / 360;
+function projX(lon) { return (lon + 180) * S; }
+function projY(lat) { return (90 - lat) * S; }
+function unprojLon(x) { return x / S - 180; }
+function unprojLat(y) { return 90 - y / S; }
+var SVGNS = 'http://www.w3.org/2000/svg';
+
+function el(tag, attrs) {
+  var n = document.createElementNS(SVGNS, tag);
+  for (var k in attrs) if (attrs[k] !== null && attrs[k] !== undefined) n.setAttribute(k, attrs[k]);
+  return n;
+}
+function pathFromPts(pts) {
+  var d = '';
+  for (var i = 0; i < pts.length; i++) d += (i ? 'L' : 'M') + projX(pts[i][0]).toFixed(1) + ' ' + projY(pts[i][1]).toFixed(1);
+  return d;
+}
+
+function drawGraticule() {
+  var g = document.getElementById('graticule');
+  g.textContent = '';
+  for (var lon = -150; lon <= 150; lon += 30)
+    g.appendChild(el('path', { d: 'M' + projX(lon) + ' ' + projY(85) + 'L' + projX(lon) + ' ' + projY(-60) }));
+  for (var lat = -60; lat <= 80; lat += 30)
+    g.appendChild(el('path', { d: 'M0 ' + projY(lat) + 'L800 ' + projY(lat) }));
+}
+
+/* ─────────── 7. Состояние и интерфейс ─────────── */
+
+var state = { preset: 'career', city: null, result: null };
+var root = document.documentElement;
+var T = {
+  ru: {
+    linesOn: 'линий на карте', nearest: 'Ближайшие к вам линии', city: 'Город', line: 'Линия',
+    dist: 'Расстояние', why: 'Что усиливает', best: 'Города на ваших линиях',
+    noTime: 'Время рождения неизвестно', copy: 'Скопировать ссылку', copied: 'Ссылка скопирована',
+    probe: 'Точка на карте', clickHint: 'Нажмите на карту, чтобы разобрать любое место.',
+    slowPlanets: 'Что можно сказать без времени рождения',
+    slowNote: 'Медленные планеты за сутки почти не двигаются, поэтому их положение по знакам известно и без точного времени. Линии — нет: они зависят от вращения Земли и без времени недостоверны.',
+    warnUnknown: 'Без точного времени рождения линии MC, IC, AC и DC не имеют смысла: за каждый час они смещаются примерно на 15° долготы. Мы их не рисуем — вместо догадки показываем то, что действительно известно.',
+    warnApprox: 'Время известно приблизительно, поэтому вместо линий показаны полосы неопределённости. Реальная линия проходит где-то внутри полосы.',
+    kmWide: 'ширина полосы в районе города', mapTitle: 'Карта мира с линиями планет',
+    ofWhich: 'из них по вашей цели', sign: 'Знак', planet: 'Планета'
+  },
+  en: {
+    linesOn: 'lines on the map', nearest: 'Lines nearest to you', city: 'City', line: 'Line',
+    dist: 'Distance', why: 'What it strengthens', best: 'Cities on your lines',
+    noTime: 'Birth time unknown', copy: 'Copy link', copied: 'Link copied',
+    probe: 'Point on the map', clickHint: 'Tap the map to read any location.',
+    slowPlanets: 'What can be said without a birth time',
+    slowNote: 'Slow planets barely move in a day, so their signs are known even without an exact time. Lines are not: they depend on the Earth\'s rotation and are unreliable without a time.',
+    warnUnknown: 'Without an exact birth time the MC, IC, AC and DC lines are meaningless: they shift about 15° of longitude per hour. We do not draw them — instead of a guess, we show what is actually known.',
+    warnApprox: 'The time is only approximate, so bands of uncertainty are shown instead of lines. The real line runs somewhere inside the band.',
+    kmWide: 'band width near the city', mapTitle: 'World map with planetary lines',
+    ofWhich: 'of them match your goal', sign: 'Sign', planet: 'Planet'
+  }
+};
+function t(k) { return T[root.getAttribute('data-lang')][k]; }
+function lang() { return root.getAttribute('data-lang'); }
+function pname(p) { return PLANET_INFO[p][lang()]; }
+
+/* ---- язык ---- */
+function setLang(l) {
+  root.setAttribute('data-lang', l);
+  root.setAttribute('lang', l);
+  var btns = document.querySelectorAll('.lang-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].setAttribute('aria-pressed', btns[i].dataset.l === l ? 'true' : 'false');
+  document.getElementById('map-title').textContent = t('mapTitle');
+  try { localStorage.setItem('acg-lang', l); } catch (e) {}
+  buildPresets();
+  if (state.city) document.getElementById('f-city').value = state.city[l === 'ru' ? 0 : 1];
+  render();
+}
+
+/* ---- пресеты ---- */
+function buildPresets() {
+  var box = document.getElementById('presets');
+  box.textContent = '';
+  Object.keys(PRESETS).forEach(function (k) {
+    var b = document.createElement('button');
+    b.className = 'chip'; b.type = 'button';
+    b.textContent = PRESETS[k][lang()];
+    b.setAttribute('aria-pressed', state.preset === k ? 'true' : 'false');
+    b.onclick = function () { state.preset = k; buildPresets(); render(); };
+    box.appendChild(b);
+  });
+}
+
+/* ---- автодополнение города ---- */
+var cityInput = document.getElementById('f-city');
+var cityList = document.getElementById('city-options');
+
+function findCities(q) {
+  q = q.trim().toLowerCase();
+  if (!q) return [];
+  var res = [];
+  for (var i = 0; i < CITIES.length && res.length < 8; i++) {
+    var c = CITIES[i];
+    if (c[0].toLowerCase().indexOf(q) === 0 || c[1].toLowerCase().indexOf(q) === 0) res.push(c);
+  }
+  if (res.length < 8) for (var j = 0; j < CITIES.length && res.length < 8; j++) {
+    var d = CITIES[j];
+    if (res.indexOf(d) < 0 && (d[0].toLowerCase().indexOf(q) > 0 || d[1].toLowerCase().indexOf(q) > 0)) res.push(d);
+  }
+  return res;
+}
+function showOptions(list) {
+  cityList.textContent = '';
+  if (!list.length) { cityList.hidden = true; cityInput.setAttribute('aria-expanded', 'false'); return; }
+  list.forEach(function (c) {
+    var li = document.createElement('li');
+    li.setAttribute('role', 'option');
+    var nm = document.createElement('span');
+    nm.textContent = c[lang() === 'ru' ? 0 : 1];
+    var cc = document.createElement('span');
+    cc.className = 'cc';
+    cc.textContent = c[2].toFixed(1) + '°, ' + c[3].toFixed(1) + '°';
+    li.appendChild(nm); li.appendChild(cc);
+    li.onclick = function () { pickCity(c); };
+    cityList.appendChild(li);
+  });
+  cityList.hidden = false;
+  cityInput.setAttribute('aria-expanded', 'true');
+}
+function pickCity(c) {
+  state.city = c;
+  cityInput.value = c[lang() === 'ru' ? 0 : 1];
+  cityList.hidden = true;
+  cityInput.setAttribute('aria-expanded', 'false');
+  document.getElementById('city-meta').textContent =
+    c[2].toFixed(3) + '°, ' + c[3].toFixed(3) + '° · ' + c[4];
+}
+cityInput.addEventListener('input', function () { state.city = null; showOptions(findCities(cityInput.value)); });
+cityInput.addEventListener('focus', function () { if (!state.city) showOptions(findCities(cityInput.value)); });
+document.addEventListener('click', function (e) {
+  if (!cityList.contains(e.target) && e.target !== cityInput) cityList.hidden = true;
+});
+
+/* ---- чекбокс «не знаю время» ---- */
+var unknownBox = document.getElementById('f-unknown');
+var precisionWrap = document.createElement('div');
+precisionWrap.className = 'field';
+precisionWrap.hidden = true;
+precisionWrap.innerHTML =
+  '<label for="f-prec"><span class="ru">Насколько приблизительно</span><span class="en">How approximate</span></label>' +
+  '<select id="f-prec">' +
+  '<option value="0.25"><span></span>± 15 мин</option>' +
+  '<option value="1">± 1 ч</option>' +
+  '<option value="3">± 3 ч</option>' +
+  '<option value="99">'+'Совсем не знаю'+'</option>' +
+  '</select>';
+unknownBox.closest('.field').appendChild(precisionWrap);
+var precSel = precisionWrap.querySelector('#f-prec');
+function syncPrecLabels() {
+  var ru = lang() === 'ru';
+  precSel.options[0].textContent = ru ? '± 15 минут' : '± 15 minutes';
+  precSel.options[1].textContent = ru ? '± 1 час' : '± 1 hour';
+  precSel.options[2].textContent = ru ? '± 3 часа' : '± 3 hours';
+  precSel.options[3].textContent = ru ? 'Совсем не знаю' : 'No idea at all';
+}
+unknownBox.addEventListener('change', function () {
+  precisionWrap.hidden = !unknownBox.checked;
+  document.getElementById('f-time').disabled = unknownBox.checked && precSel.value === '99';
+});
+precSel.addEventListener('change', function () {
+  document.getElementById('f-time').disabled = unknownBox.checked && precSel.value === '99';
+});
+
+/* ---- расчёт ---- */
+function compute() {
+  var errBox = document.getElementById('form-err');
+  errBox.hidden = true;
+  var dateV = document.getElementById('f-date').value;
+  var timeV = document.getElementById('f-time').value || '12:00';
+  if (!state.city) {
+    errBox.hidden = false;
+    errBox.textContent = lang() === 'ru'
+      ? 'Выберите город из списка — нужны координаты и часовой пояс.'
+      : 'Pick a city from the list — coordinates and time zone are required.';
+    return;
+  }
+  if (!dateV) {
+    errBox.hidden = false;
+    errBox.textContent = lang() === 'ru' ? 'Укажите дату рождения.' : 'Enter the date of birth.';
+    return;
+  }
+  var dp = dateV.split('-').map(Number), tp = timeV.split(':').map(Number);
+  var unknown = unknownBox.checked;
+  var spread = unknown ? parseFloat(precSel.value) : 0;   // в часах, 99 = совсем неизвестно
+
+  var city = state.city;
+  var base = { y: dp[0], mo: dp[1], d: dp[2], h: tp[0], mi: tp[1], tz: city[4] };
+
+  function frameAt(offsetHours) {
+    var ms = localToUTC(base.y, base.mo, base.d, base.h, base.mi, base.tz) + offsetHours * 3600000;
+    var dt = new Date(ms);
+    var jd = julianDay(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate(),
+      dt.getUTCHours() + dt.getUTCMinutes() / 60 + dt.getUTCSeconds() / 3600);
+    return { jd: jd, gst: gmst(jd), pos: positions(jd), utc: dt };
+  }
+
+  var mid = frameAt(0);
+  state.result = {
+    city: city, date: dateV, time: timeV, unknown: unknown, spread: spread,
+    mid: mid,
+    lo: (spread > 0 && spread < 90) ? frameAt(-spread) : null,
+    hi: (spread > 0 && spread < 90) ? frameAt(+spread) : null,
+    offsetMin: zoneOffsetMinutes(city[4], localToUTC(base.y, base.mo, base.d, base.h, base.mi, base.tz))
+  };
+  saveURL();
+  render();
+}
+
+/* ---- ссылка на расчёт ---- */
+function saveURL() {
+  var r = state.result; if (!r) return;
+  var p = [r.date, r.time, r.city[1], r.unknown ? r.spread : 0, state.preset].join('|');
+  try { history.replaceState(null, '', '#' + encodeURIComponent(p)); } catch (e) {}
+}
+function loadURL() {
+  var h = decodeURIComponent((location.hash || '').slice(1));
+  if (!h) return false;
+  var p = h.split('|');
+  if (p.length < 5) return false;
+  var city = null;
+  for (var i = 0; i < CITIES.length; i++) if (CITIES[i][1] === p[2]) city = CITIES[i];
+  if (!city) return false;
+  document.getElementById('f-date').value = p[0];
+  document.getElementById('f-time').value = p[1];
+  pickCity(city);
+  var sp = parseFloat(p[3]);
+  if (sp > 0) {
+    unknownBox.checked = true;
+    precisionWrap.hidden = false;
+    precSel.value = (sp === 0.25 || sp === 1 || sp === 3 || sp === 99) ? String(sp) : '1';
+    document.getElementById('f-time').disabled = sp === 99;
+  }
+  if (PRESETS[p[4]]) state.preset = p[4];
+  return true;
+}
+
+/* ─────────── 8. Отрисовка ─────────── */
+
+function activeSet() {
+  var p = PRESETS[state.preset];
+  return { planets: p.planets, angles: p.angles };
+}
+
+// Все линии текущего расчёта: [{planet, angle, segs, segsLo, segsHi}]
+function buildLines(frame) {
+  var act = activeSet(), out = [];
+  act.planets.forEach(function (pl) {
+    var o = frame.pos[pl];
+    var all = planetLines(o.ra, o.dec, frame.gst);
+    act.angles.forEach(function (an) {
+      out.push({ planet: pl, angle: an, segs: all[an] });
+    });
+  });
+  return out;
+}
+
+function render() {
+  var res = state.result;
+  var gL = document.getElementById('lines'), gB = document.getElementById('bands'),
+      gT = document.getElementById('labels'), gP = document.getElementById('pins'),
+      leg = document.getElementById('legend'), box = document.getElementById('results');
+  gL.textContent = ''; gB.textContent = ''; gT.textContent = ''; gP.textContent = ''; leg.textContent = '';
+
+  if (!res) return;
+
+  var noLines = res.unknown && res.spread >= 90;
+  var lines = noLines ? [] : buildLines(res.mid);
+  var linesLo = (res.lo ? buildLines(res.lo) : null);
+  var linesHi = (res.hi ? buildLines(res.hi) : null);
+
+  // полосы неопределённости
+  if (linesLo && linesHi) {
+    for (var i = 0; i < lines.length; i++) {
+      var a = linesLo[i].segs[0], b = linesHi[i].segs[0];
+      if (!a || !b || a.length < 2 || b.length < 2) continue;
+      var d = pathFromPts(a) + 'L' + b.slice().reverse().map(function (pt) {
+        return projX(pt[0]).toFixed(1) + ' ' + projY(pt[1]).toFixed(1);
+      }).join('L') + 'Z';
+      gB.appendChild(el('path', { d: d, fill: PLANET_INFO[lines[i].planet].color, class: 'uband' }));
+    }
+  }
+
+  // сами линии
+  var placed = [];
+  function labelTaken(x, w, y) {
+    for (var i = 0; i < placed.length; i++) {
+      var q = placed[i];
+      if (Math.abs(q.y - y) < 10 && x < q.x + q.w && q.x < x + w) return true;
+    }
+    return false;
+  }
+  lines.forEach(function (ln) {
+    var col = PLANET_INFO[ln.planet].color;
+    ln.segs.forEach(function (seg) {
+      if (seg.length < 2) return;
+      gL.appendChild(el('path', {
+        d: pathFromPts(seg), class: 'pline', stroke: col,
+        'stroke-dasharray': ANGLE_DASH[ln.angle] || null,
+        'stroke-linecap': (ln.angle === 'AC' || ln.angle === 'IC') ? 'round' : null
+      }));
+    });
+    var top = ln.segs[0] && ln.segs[0][0];
+    if (top) {
+      var label = pname(ln.planet) + ' ' + ln.angle;
+      var x = projX(top[0]) + 3;
+      var w = label.length * 5.2;                 // грубая ширина текста
+      var y = projY(top[1]) + 10;
+      while (labelTaken(x, w, y)) y += 11;        // не даём подписям наезжать друг на друга
+      placed.push({ x: x, w: w, y: y });
+      var tx = el('text', { x: x.toFixed(1), y: y.toFixed(1), fill: col });
+      tx.textContent = label;
+      tx.setAttribute('stroke', 'var(--surface)');
+      gT.appendChild(tx);
+    }
+  });
+
+  // место рождения
+  var c = res.city;
+  gP.appendChild(el('circle', { cx: projX(c[3]).toFixed(1), cy: projY(c[2]).toFixed(1), r: 3.5, class: 'pin' }));
+  var pt = el('text', { x: projX(c[3]) + 6, y: projY(c[2]) + 3 });
+  pt.textContent = c[lang() === 'ru' ? 0 : 1];
+  gP.appendChild(pt);
+
+  // легенда
+  var seen = {};
+  lines.forEach(function (ln) {
+    if (seen[ln.planet]) return;
+    seen[ln.planet] = 1;
+    var li = document.createElement('li');
+    var dot = document.createElement('span');
+    dot.className = 'dot'; dot.style.background = PLANET_INFO[ln.planet].color;
+    li.appendChild(dot);
+    li.appendChild(document.createTextNode(pname(ln.planet)));
+    leg.appendChild(li);
+  });
+  if (!noLines) {
+    var usedAngles = {};
+    lines.forEach(function (ln) { usedAngles[ln.angle] = 1; });
+    Object.keys(ANGLE_DASH).forEach(function (an) {
+      if (!usedAngles[an]) return;
+      var li3 = document.createElement('li');
+      var sv = el('svg', { width: 26, height: 8, 'aria-hidden': 'true' });
+      sv.appendChild(el('line', {
+        x1: 1, y1: 4, x2: 25, y2: 4, stroke: 'var(--neutral)', 'stroke-width': 1.5,
+        'stroke-dasharray': ANGLE_DASH[an] || null,
+        'stroke-linecap': (an === 'AC' || an === 'IC') ? 'round' : null
+      }));
+      li3.appendChild(sv);
+      li3.appendChild(document.createTextNode(an));
+      leg.appendChild(li3);
+    });
+  }
+
+  renderResults(box, res, lines, noLines);
+}
+
+function fmtKm(km) {
+  return (km < 100 ? km.toFixed(0) : Math.round(km / 10) * 10).toLocaleString(lang() === 'ru' ? 'ru-RU' : 'en-GB') + ' км';
+}
+function fmtKmL(km) { return lang() === 'ru' ? fmtKm(km) : (Math.round(km)).toLocaleString('en-GB') + ' km'; }
+
+function renderResults(box, res, lines, noLines) {
+  box.textContent = '';
+
+  // предупреждение о времени
+  if (res.unknown) {
+    var w = document.createElement('div');
+    w.className = 'warnbox';
+    var st = document.createElement('strong');
+    st.textContent = t('noTime') + '. ';
+    w.appendChild(st);
+    w.appendChild(document.createTextNode(noLines ? t('warnUnknown') : t('warnApprox')));
+    box.appendChild(w);
+  }
+
+  if (noLines) {
+    var h = document.createElement('h2');
+    h.textContent = t('slowPlanets');
+    box.appendChild(h);
+    var note = document.createElement('p');
+    note.style.color = 'var(--muted)'; note.style.fontSize = '14px';
+    note.textContent = t('slowNote');
+    box.appendChild(note);
+    var tw = document.createElement('div'); tw.className = 'tablewrap';
+    var tb = document.createElement('table');
+    tb.innerHTML = '<thead><tr><th>' + t('planet') + '</th><th>' + t('sign') + '</th><th>' + t('why') + '</th></tr></thead>';
+    var body = document.createElement('tbody');
+    ['jupiter', 'saturn', 'uranus', 'neptune', 'pluto'].forEach(function (p) {
+      var lon = res.mid.pos[p].lon;
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + pname(p) + '</td><td>' + SIGNS[lang()][Math.floor(lon / 30) % 12] +
+        '</td><td style="color:var(--muted)">' + MEANING[p][lang()] + '</td>';
+      body.appendChild(tr);
+    });
+    tb.appendChild(body); tw.appendChild(tb); box.appendChild(tw);
+    addMeta(box, res, 0);
+    return;
+  }
+
+  // сколько линий
+  var total = PLANETS.length * 4;
+  var cnt = document.createElement('p');
+  cnt.style.color = 'var(--muted)'; cnt.style.fontSize = '13px'; cnt.style.margin = '0 0 14px';
+  cnt.textContent = lines.length + ' ' + t('linesOn') + ' (' + total + ' ' + (lang() === 'ru' ? 'всего' : 'in total') + ')';
+  box.appendChild(cnt);
+
+  // города на линиях
+  var h2 = document.createElement('h2');
+  h2.textContent = t('best');
+  box.appendChild(h2);
+
+  var scored = CITIES.map(function (c) {
+    var best = null, score = 0;
+    lines.forEach(function (ln) {
+      var d = distToSegments(c[2], c[3], ln.segs);
+      if (d > 1200) return;
+      var w = 1 - d / 1200;
+      score += PLANET_INFO[ln.planet].hard ? -w * 0.8 : w;
+      if (!best || d < best.d) best = { d: d, planet: ln.planet, angle: ln.angle };
+    });
+    return { c: c, score: score, best: best };
+  }).filter(function (r) { return r.best; })
+    .sort(function (a, b) { return b.score - a.score; });
+
+  var tw2 = document.createElement('div'); tw2.className = 'tablewrap';
+  var tb2 = document.createElement('table');
+  tb2.innerHTML = '<thead><tr><th>' + t('city') + '</th><th>' + t('line') + '</th><th class="num">' + t('dist') +
+    '</th><th>' + t('why') + '</th></tr></thead>';
+  var body2 = document.createElement('tbody');
+  // Не больше двух городов на одну и ту же линию: иначе меридиан выдаёт подряд
+  // восемь городов с одинаковой подписью, и таблица перестаёт что-либо сообщать.
+  var perLine = {}, shown = [];
+  for (var si = 0; si < scored.length && shown.length < 8; si++) {
+    var key = scored[si].best.planet + scored[si].best.angle;
+    if ((perLine[key] || 0) >= 2) continue;
+    perLine[key] = (perLine[key] || 0) + 1;
+    shown.push(scored[si]);
+  }
+  shown.forEach(function (r) {
+    var tr = document.createElement('tr');
+    var td1 = document.createElement('td');
+    var wrap = document.createElement('span'); wrap.className = 'cityname';
+    var dot = document.createElement('span');
+    dot.className = 'dot'; dot.style.background = PLANET_INFO[r.best.planet].color;
+    wrap.appendChild(dot);
+    wrap.appendChild(document.createTextNode(r.c[lang() === 'ru' ? 0 : 1]));
+    td1.appendChild(wrap);
+    var td2 = document.createElement('td');
+    td2.textContent = pname(r.best.planet) + ' ' + r.best.angle;
+    var td3 = document.createElement('td'); td3.className = 'num';
+    td3.textContent = fmtKmL(r.best.d);
+    var td4 = document.createElement('td');
+    td4.style.color = 'var(--muted)';
+    td4.textContent = MEANING[r.best.planet][lang()];
+    tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
+    body2.appendChild(tr);
+  });
+  tb2.appendChild(body2); tw2.appendChild(tb2); box.appendChild(tw2);
+
+  var hint = document.createElement('p');
+  hint.className = 'meta'; hint.textContent = t('clickHint');
+  box.appendChild(hint);
+
+  addMeta(box, res, lines.length);
+}
+
+function addMeta(box, res, n) {
+  var m = document.createElement('p');
+  m.className = 'meta';
+  var off = res.offsetMin, sign = off < 0 ? '−' : '+';
+  var oh = Math.floor(Math.abs(off) / 60), om = Math.abs(off) % 60;
+  var u = res.mid.utc;
+  var pad = function (x) { return (x < 10 ? '0' : '') + x; };
+  m.textContent = (lang() === 'ru' ? 'Момент в UT: ' : 'Moment in UT: ') +
+    u.getUTCFullYear() + '-' + pad(u.getUTCMonth() + 1) + '-' + pad(u.getUTCDate()) + ' ' +
+    pad(u.getUTCHours()) + ':' + pad(u.getUTCMinutes()) +
+    ' · ' + (lang() === 'ru' ? 'смещение зоны ' : 'zone offset ') + res.city[4] + ' ' + sign + pad(oh) + ':' + pad(om);
+  box.appendChild(m);
+
+  var sh = document.createElement('div'); sh.className = 'share';
+  var inp = document.createElement('input');
+  inp.type = 'text'; inp.readOnly = true; inp.value = location.href;
+  var bt = document.createElement('button');
+  bt.className = 'chip'; bt.type = 'button'; bt.textContent = t('copy');
+  bt.onclick = function () {
+    inp.select();
+    try {
+      if (navigator.clipboard) navigator.clipboard.writeText(location.href);
+      else document.execCommand('copy');
+      bt.textContent = t('copied');
+      setTimeout(function () { bt.textContent = t('copy'); }, 1800);
+    } catch (e) {}
+  };
+  sh.appendChild(inp); sh.appendChild(bt);
+  box.appendChild(sh);
+}
+
+/* ─────────── 9. Клик по карте ─────────── */
+
+var mapEl = document.getElementById('map');
+mapEl.addEventListener('click', function (ev) {
+  var res = state.result;
+  if (!res || (res.unknown && res.spread >= 90)) return;
+  var r = mapEl.getBoundingClientRect();
+  var vb = mapEl.viewBox.baseVal;
+  var x = (ev.clientX - r.left) / r.width * vb.width + vb.x;
+  var y = (ev.clientY - r.top) / r.height * vb.height + vb.y;
+  var lon = unprojLon(x), lat = unprojLat(y);
+
+  var lines = buildLines(res.mid);
+  var near = lines.map(function (ln) {
+    return { ln: ln, d: distToSegments(lat, lon, ln.segs) };
+  }).sort(function (a, b) { return a.d - b.d; }).slice(0, 3);
+
+  var g = document.getElementById('pins');
+  var old = g.querySelector('.probe-group');
+  if (old) g.removeChild(old);
+  var grp = el('g', { class: 'probe-group' });
+  grp.appendChild(el('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 5, class: 'probe' }));
+  g.appendChild(grp);
+
+  var box = document.getElementById('results');
+  var old2 = document.getElementById('probe-box');
+  if (old2) old2.parentNode.removeChild(old2);
+  var d = document.createElement('div');
+  d.id = 'probe-box';
+  d.style.cssText = 'border-top:1px solid var(--line);margin-top:16px;padding-top:14px';
+  var h = document.createElement('h2');
+  h.textContent = t('probe') + ': ' + Math.abs(lat).toFixed(1) + '° ' + (lat >= 0 ? 'N' : 'S') +
+    ', ' + Math.abs(lon).toFixed(1) + '° ' + (lon >= 0 ? 'E' : 'W');
+  d.appendChild(h);
+  var ul = document.createElement('table');
+  var tb = document.createElement('tbody');
+  near.forEach(function (n) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><span class="dot" style="background:' + PLANET_INFO[n.ln.planet].color + '"></span>' +
+      pname(n.ln.planet) + ' ' + n.ln.angle + '</td><td class="num">' + fmtKmL(n.d) +
+      '</td><td style="color:var(--muted)">' + MEANING[n.ln.planet][lang()] + '</td>';
+    tb.appendChild(tr);
+  });
+  ul.appendChild(tb); d.appendChild(ul);
+  box.appendChild(d);
+});
+
+/* ─────────── 10. Инициализация ─────────── */
+
+document.getElementById('calc').addEventListener('click', compute);
+var lb = document.querySelectorAll('.lang-btn');
+for (var i = 0; i < lb.length; i++) lb[i].addEventListener('click', function () { setLang(this.dataset.l); });
+
+drawGraticule();
+syncPrecLabels();
+buildPresets();
+document.getElementById('map-title').textContent = t('mapTitle');
+
+try {
+  var saved = localStorage.getItem('acg-lang');
+  if (saved === 'ru' || saved === 'en') setLang(saved);
+} catch (e) {}
+
+var fromURL = loadURL();
+if (!fromURL) {
+  for (var k = 0; k < CITIES.length; k++) if (CITIES[k][1] === 'Minsk') pickCity(CITIES[k]);
+}
+syncPrecLabels();
+compute();
+
+})();
+</script>
+</body>
+</html>
